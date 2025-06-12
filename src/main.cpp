@@ -1,3 +1,4 @@
+#include <cmath>
 #include <cstdlib>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -15,9 +16,13 @@
 #define numVbo 1
 #define numEbo 1
 
+// shader source file
+const char* vp = "/home/zee/dev/OpenGL_series/5_cube/shaders/vShader.glsl";
+const char* fp = "/home/zee/dev/OpenGL_series/5_cube/shaders/fShader.glsl";
+
 // window view port
-const int width = 800;
-const int height = 600;
+const int width = 1024;
+const int height = 720;
 
 // Buffers
 GLuint vao[numVao];
@@ -48,12 +53,11 @@ int h, w;
 // matrices
 glm::mat4 pMat, mMat, vMat, mvMat;
 
+// Translation, rotation matrices
+glm::mat4 tMat, rMat;
+
 // store id of texture
 GLuint tex;
-
-// shader source file
-const char* vp = "/home/zee/dev/OpenGL_series/5_cube/shaders/vShader.glsl";
-const char* fp = "/home/zee/dev/OpenGL_series/5_cube/shaders/fShader.glsl";
 
 void setupRectangle(){
 	// setup vertices of the rectangle
@@ -241,7 +245,7 @@ void init(){
 	setupCube();
 }
 
-void display(GLFWwindow* win){
+void display(GLFWwindow* win, float currTime){
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	// rgba(123, 65, 168, 1)
 	glClearColor(123.0f/255.0f, 65.0f/255.0f, 168.0f/255.0f, 1.0f);
@@ -265,10 +269,11 @@ void display(GLFWwindow* win){
 	vMat = glm::translate(model, glm::vec3(-cameraX, -cameraY, -cameraZ));
 
 	// local -> model
-	mMat = glm::translate(model, glm::vec3(cubeX, cubeY, cubeZ));
-	mMat = glm::rotate(mMat, glm::radians(rotX), glm::vec3(1.0f, 0.0f, 0.0f));
-	mMat = glm::rotate(mMat, glm::radians(rotY), glm::vec3(0.0f, 1.0f, 0.0f));
-	mMat = glm::rotate(mMat, glm::radians(rotZ), glm::vec3(0.0f, 0.0f, 1.0f));
+	// Feature #2 - animating the cube
+	mMat = glm::translate(model, glm::vec3(sin(0.35f * currTime)*cubeX, cos(0.52 * currTime)*cubeY, sin(0.7 * currTime)*cubeZ));
+	mMat = glm::rotate(mMat, glm::radians(rotX * (float)currTime), glm::vec3(1.0f, 0.0f, 0.0f));
+	mMat = glm::rotate(mMat, glm::radians(rotY * (float)currTime), glm::vec3(0.0f, 1.0f, 0.0f));
+	mMat = glm::rotate(mMat, glm::radians(rotZ * (float)currTime), glm::vec3(0.0f, 0.0f, 1.0f));
 
 	mvMat = vMat * mMat;
 	
@@ -341,7 +346,7 @@ int main(){
 
 		ImGui::End();
 
-		display(win);
+		display(win, glfwGetTime());
 
 		imgui.render_imgui();
 
