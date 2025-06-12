@@ -3,6 +3,8 @@
 #include <GLFW/glfw3.h>
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/trigonometric.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <ostream>
 #include "../external/include/WindowManager.h"
@@ -34,6 +36,7 @@ GLuint projLoc, mvLoc;
 // cammera nd object location
 float cameraX, cameraY, cameraZ;
 float cubeX, cubeY, cubeZ;
+float rotX, rotY, rotZ;
 
 // perspective matrix attribute
 float aspect;
@@ -208,16 +211,25 @@ void init(){
 	// get the location of uniform variable
 	// uniScale = glGetUniformLocation(shaderProgram, "scale");
 
+	// camera position
 	cameraX = 0.0f;
 	cameraY = 0.0f;
 	cameraZ = 8.0f;
 	
+	// cube position
 	cubeX = 0.0f;
 	cubeY = -2.0f;
 	cubeZ = 0.0f;
 
+	// cube rotation
+	rotX = 0.0f;
+	rotY = 0.0f;
+	rotZ = 0.0f;
+	
+	// get location id of uniform variable from shaders
 	mvLoc = glGetUniformLocation(shaderProgram, "mvMat");
 	projLoc = glGetUniformLocation(shaderProgram, "projMat");
+	uniScale = glGetUniformLocation(shaderProgram, "scale");
 
 	// load texture and get ref id
 	tex = Utils::loadTexture("/home/zee/dev/OpenGL_series/5_cube/textures/brick.jpg");
@@ -251,11 +263,20 @@ void display(GLFWwindow* win){
 	// build the view,model,view-model matrices
 	glm::mat4 model = glm::mat4(1.0f);
 	vMat = glm::translate(model, glm::vec3(-cameraX, -cameraY, -cameraZ));
+
+	// local -> model
 	mMat = glm::translate(model, glm::vec3(cubeX, cubeY, cubeZ));
+	mMat = glm::rotate(mMat, glm::radians(rotX), glm::vec3(1.0f, 0.0f, 0.0f));
+	mMat = glm::rotate(mMat, glm::radians(rotY), glm::vec3(0.0f, 1.0f, 0.0f));
+	mMat = glm::rotate(mMat, glm::radians(rotZ), glm::vec3(0.0f, 0.0f, 1.0f));
+
 	mvMat = vMat * mMat;
 	
 	// pass the mv matrix to shader
 	glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+
+	// pass a scale value to shader
+	glUniform1f(uniScale, 2.0f);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tex);
@@ -307,6 +328,17 @@ int main(){
 		ImGui::SliderFloat("Camera X", &cameraX, -100.0f, 100.0f);
 		ImGui::SliderFloat("Camera Y", &cameraY, -10.0f, 100.0f);
 		ImGui::SliderFloat("Camera Z", &cameraZ, -100.0f, 100.0f);
+
+		// Object rotation controls
+		ImGui::SliderFloat("Rotation on X-axis", &rotX, 0.0f, 360.0f);
+		ImGui::SliderFloat("Rotation on Y-axis", &rotY, 0.0f, 360.0f);
+		ImGui::SliderFloat("Rotation on Z-axis", &rotZ, 0.0f, 360.0f);
+
+		// print the values
+		ImGui::Text("Cube.X: %.2f, Cube.Y: %.2f, Cube.Z: %2.f", cubeX, cubeY, cubeZ);
+		ImGui::Text("Camera.X: %.2f, Camera.Y: %.2f, Camera.Z: %2.f", cameraX, cameraY, cameraZ);
+		ImGui::Text("rotX: %.2f, rotY: %.2f, rotZ: %.2f", rotX, rotY, rotZ);
+
 		ImGui::End();
 
 		display(win);
