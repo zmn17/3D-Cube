@@ -1,0 +1,44 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-g",
+      "-Wall",
+      "-Wextra",
+      "-std=c++17",
+      "-I/usr/include",
+      "-I/usr/include/GLFW",
+      "-Iexternal/include",
+      "-Iexternal/include/imgui",
+      "-Iexternal/include/imgui/backends",
+      "-c",
+      "-o",
+      "bin/main.o",
+      "src/main.cpp"
+    ],
+    "directory": "/home/zee/dev/OpenGL_series/5_cube4",
+    "file": "/home/zee/dev/OpenGL_series/5_cube4/src/main.cpp",
+    "output": "/home/zee/dev/OpenGL_series/5_cube4/bin/main.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-g",
+      "-Wall",
+      "-Wextra",
+      "-std=c++17",
+      "-I/usr/include",
+      "-I/usr/include/GLFW",
+      "-Iexternal/include",
+      "-Iexternal/include/imgui",
+      "-Iexternal/include/imgui/backends",
+      "-c",
+      "-o",
+      "bin/glad.o",
+      "external/src/glad.c"
+    ],
+    "directory": "/home/zee/dev/OpenGL_series/5_cube4",
+    "file": "/home/zee/dev/OpenGL_series/5_cube4/external/src/glad.c",
+    "output": "/home/zee/dev/OpenGL_series/5_cube4/bin/glad.o"
+  }
+]
