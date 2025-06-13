@@ -8,12 +8,13 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <ostream>
+#include <stack>
 #include "../external/include/WindowManager.h"
 #include "../external/include/Utils.h"
 #include "../external/include/Imgui_lib.h"
 
-#define numVao 1
-#define numVbo 1
+#define numVao 2
+#define numVbo 2
 #define numEbo 1
 
 // shader source file
@@ -40,8 +41,18 @@ GLuint projLoc, mvLoc;
 
 // cammera nd object location
 float cameraX, cameraY, cameraZ;
+
+// cube pos
 float cubeX, cubeY, cubeZ;
+
+// rotation value
 float rotX, rotY, rotZ;
+
+// scale value
+float scaleVal;
+
+// pyramid pos
+float pyX, pyY, pyZ;
 
 // perspective matrix attribute
 float aspect;
@@ -59,74 +70,11 @@ glm::mat4 tMat, rMat;
 // store id of texture
 GLuint tex;
 
-void setupRectangle(){
-	// setup vertices of the rectangle
-	// 200, 150 -> top left
-	// 300, 150 -> top right
-	// 300, 250 -> bottom right
-	// 200, 250 -> bottom left
-	// NDC_x = (pixel_x / width) * 2.0f - 1.0f
-	// NDC_x = (pixel_y / height) * 2.0f
-	
-	// ======================= Rect vertex positions without EBO
-	// float rec[] = {
-	// 	// Triangle 1
-	// 	-0.5f,  0.5f, 0.0f,			// bottom left		index = 0
-	// 	-0.25f, 0.5f, 0.0f,			// bottom right		index = 1
-	// 	-0.25f, 0.1667f, 0.0f,		// top right		index = 2
-	//
-	// 	// Triangle 2
-	// 	-0.25f, 0.1667f, 0.0f,    // top right		index = 2
-	// 	-0.5f,  0.1667f, 0.0f,   // top left			index = 3
-	// 	-0.5f,  0.5f, 0.0f		// bottom left		index = 0
-	// };
-	
-	float rec[] = {
-		//           COORDINATES														COLORS											
-		-0.5f,  0.5f, 0.0f,			/* bottom left		index = 0*/		0.78f, 0.62f, 0.91f,			 
-		-0.25f, 0.5f, 0.0f,		/* bottom right		index = 1*/		0.73f, 0.48f, 0.48f,			
-		-0.25f, 0.1667f, 0.0f,	/* top right		index = 2*/		0.73f, 0.67f, 0.47f,		
-		-0.5f,  0.1667f, 0.0f,	/* top left			index = 3*/		0.98f, 0.74f, 0.0f,			
-	};
+// useTexture flag id
+GLuint useTexLoc;
 
-	GLuint indices[] = {
-		0, 1, 2,
-		2, 3, 0
-	};
-
-	// generate VAO
-	glGenVertexArrays(numVao, vao);
-	// bind 
-	glBindVertexArray(vao[0]);
-	
-	// generate VBO
-	glGenBuffers(numVbo, vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(rec), rec, GL_STATIC_DRAW);
-
-	// generate EBO
-	glGenBuffers(numEbo, ebo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo[0]);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-	// Specifies how OpenGL should interpret the vertex data in your VBO (Vertex Buffer Object) for one attribute.
-	// Tell OpenGL how to walk through your VBO data — e.g., every 6 floats: first 3 are position, next 3 are color.
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
-	// Enables a specific attribute index for use during rendering.
-	glEnableVertexAttribArray(0); // pos -> location = 0
-	
-	// for color attribute
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(1);
-
-	// glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void * )(6 * sizeof(float)));
-	// glEnableVertexAttribArray(2);
-	
-	// Unbind
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-
-}
+// Model-View stack
+std::stack<glm::mat4> mvStack;
 
 void setupCube(){
 	float vertexData[288] = {
@@ -209,6 +157,59 @@ void setupCube(){
 
 }
 
+void setupPyramid(){
+	// create vertices positions
+	float pyramidVertices[108] = {
+		// Base - triangle 1
+	   -0.5f, 0.0f, -0.5f,     0.32f, 0.67f, 0.14f,
+		0.5f, 0.0f, -0.5f,     0.91f, 0.18f, 0.62f,
+		0.5f, 0.0f,  0.5f,     0.03f, 0.78f, 0.40f,
+
+		// Base - triangle 2
+		0.5f, 0.0f,  0.5f,     0.89f, 0.32f, 0.55f,
+	   -0.5f, 0.0f,  0.5f,     0.26f, 0.96f, 0.71f,
+	   -0.5f, 0.0f, -0.5f,     0.73f, 0.44f, 0.23f,
+
+		// Side 1 (Back face)
+	   -0.5f, 0.0f, -0.5f,     0.87f, 0.58f, 0.99f,
+		0.5f, 0.0f, -0.5f,     0.11f, 0.76f, 0.05f,
+		0.0f, 1.0f,  0.0f,     0.62f, 0.92f, 0.41f,
+
+		// Side 2 (Right face)
+		0.5f, 0.0f, -0.5f,     0.40f, 0.10f, 0.89f,
+		0.5f, 0.0f,  0.5f,     0.53f, 0.63f, 0.78f,
+		0.0f, 1.0f,  0.0f,     0.13f, 0.57f, 0.91f,
+
+		// Side 3 (Front face)
+		0.5f, 0.0f,  0.5f,     0.77f, 0.12f, 0.36f,
+	   -0.5f, 0.0f,  0.5f,     0.88f, 0.46f, 0.17f,
+		0.0f, 1.0f,  0.0f,     0.23f, 0.65f, 0.94f,
+
+		// Side 4 (Left face)
+	   -0.5f, 0.0f,  0.5f,     0.38f, 0.85f, 0.20f,
+	   -0.5f, 0.0f, -0.5f,     0.14f, 0.79f, 0.34f,
+		0.0f, 1.0f,  0.0f,     0.96f, 0.27f, 0.59f
+	};
+
+	// bind the VAO
+	glBindVertexArray(vao[1]);
+
+	// bind 2nd vbo buffer for pyramid
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(pyramidVertices), pyramidVertices, GL_STATIC_DRAW);
+
+	// position attrib
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+
+	// color attrib
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*) (3 * sizeof(float)));
+	glEnableVertexAttribArray(1);
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+}
+
 void init(){
 	shaderProgram = Utils::createShaderProgram(vp, fp);
 
@@ -225,15 +226,23 @@ void init(){
 	cubeY = -2.0f;
 	cubeZ = 0.0f;
 
+	pyX = 0.0f;
+	pyY = 5.0f;
+	pyZ = 0.0f;
+
 	// cube rotation
 	rotX = 0.0f;
 	rotY = 0.0f;
 	rotZ = 0.0f;
+
+	// scale value
+	scaleVal = 5.0f;
 	
 	// get location id of uniform variable from shaders
 	mvLoc = glGetUniformLocation(shaderProgram, "mvMat");
 	projLoc = glGetUniformLocation(shaderProgram, "projMat");
 	uniScale = glGetUniformLocation(shaderProgram, "scale");
+	useTexLoc = glGetUniformLocation(shaderProgram, "useTexture");
 
 	// load texture and get ref id
 	tex = Utils::loadTexture("/home/zee/dev/OpenGL_series/5_cube/textures/brick.jpg");
@@ -243,18 +252,19 @@ void init(){
 	}
 
 	setupCube();
+	setupPyramid();
 }
 
 void display(GLFWwindow* win, float currTime){
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	// rgba(123, 65, 168, 1)
-	glClearColor(123.0f/255.0f, 65.0f/255.0f, 168.0f/255.0f, 1.0f);
+	glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
 
 	// use the shadder program
 	glUseProgram(shaderProgram);
 	
 	// pass the data to the uniform variable in shaders
-	glUniform1f(uniScale, 1.5f);
+	glUniform1f(uniScale, scaleVal);
 
 	// build the perspective matrix
 	glfwGetFramebufferSize(win,&w, &h);
@@ -268,29 +278,70 @@ void display(GLFWwindow* win, float currTime){
 	glm::mat4 model = glm::mat4(1.0f);
 	vMat = glm::translate(model, glm::vec3(-cameraX, -cameraY, -cameraZ));
 
+	// PUSH THE EMPTY VIEW MATRIX INTO STACK
+	mvStack.push(vMat);
+
+	// --------------------- Cube ----------------------
 	// local -> model
-	// Feature #2 - animating the cube
 	mMat = glm::translate(model, glm::vec3(sin(0.35f * currTime)*cubeX, cos(0.52 * currTime)*cubeY, sin(0.7 * currTime)*cubeZ));
+
+	mvStack.push(mvStack.top());
+	mvStack.top() *= mMat; 
+
+	mvStack.push(mvStack.top());
+
 	mMat = glm::rotate(mMat, glm::radians(rotX * (float)currTime), glm::vec3(1.0f, 0.0f, 0.0f));
 	mMat = glm::rotate(mMat, glm::radians(rotY * (float)currTime), glm::vec3(0.0f, 1.0f, 0.0f));
 	mMat = glm::rotate(mMat, glm::radians(rotZ * (float)currTime), glm::vec3(0.0f, 0.0f, 1.0f));
-
-	mvMat = vMat * mMat;
 	
-	// pass the mv matrix to shader
-	glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+	mvStack.top() *= mMat;
 
-	// pass a scale value to shader
-	glUniform1f(uniScale, 2.0f);
+	// pass the TOP of mvStack to shader
+	glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvStack.top()));
+
+	// Use texture for this object only
+	glUniform1i(useTexLoc, GL_FALSE);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tex);
 
-	// glBindTexture(GL_TEXTURE_2D, gothTexture);
+	// bind cube vao
 	glBindVertexArray(vao[0]);
 
+	// draw cube
 	glDrawArrays(GL_TRIANGLES, 0, 36);
-	// glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+	mvStack.pop();
+
+	// --------------------- Pyramid ---------------------
+	mvStack.push(mvStack.top());
+
+	mMat = glm::translate(model, glm::vec3(sin(0.35f * currTime)*pyX, cos(0.52 * currTime)*pyY, sin(0.7 * currTime)*pyZ));
+
+	mvStack.top() *= mMat;
+	mvStack.push(mvStack.top());
+
+	mMat = glm::rotate(mMat, glm::radians(rotX * (float)currTime), glm::vec3(1.0f, 0.0f, 0.0f));
+	mMat = glm::rotate(mMat, glm::radians(rotY * (float)currTime), glm::vec3(0.0f, 1.0f, 0.0f));
+	mMat = glm::rotate(mMat, glm::radians(rotZ * (float)currTime), glm::vec3(0.0f, 0.0f, 1.0f));
+
+	mvStack.top() *= mMat;
+
+	glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvStack.top()));
+
+	// use color for this object only
+	glUniform1i(useTexLoc, GL_FALSE);
+	// unbind texture
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	// bind pyramid vao
+	glBindVertexArray(vao[1]);
+	// draw 
+	glDrawArrays(GL_TRIANGLES, 0, 18);
+
+	// remove pyramid, cube, view matrices
+	mvStack.pop();
+	mvStack.pop();
+	mvStack.pop();
  }
 
 int main(){
@@ -316,6 +367,7 @@ int main(){
 		std::cout<<"Attribute: " << i << ": " << name << std::endl;
 	}
 
+	glEnable(GL_DEPTH_TEST);
 
 	while(!glfwWindowShouldClose(win)){
 		glfwPollEvents();
@@ -339,10 +391,14 @@ int main(){
 		ImGui::SliderFloat("Rotation on Y-axis", &rotY, 0.0f, 360.0f);
 		ImGui::SliderFloat("Rotation on Z-axis", &rotZ, 0.0f, 360.0f);
 
+		// Scale value control
+		ImGui::SliderFloat("Scale", &scaleVal, 2.0f, 10.0f);
+
 		// print the values
 		ImGui::Text("Cube.X: %.2f, Cube.Y: %.2f, Cube.Z: %2.f", cubeX, cubeY, cubeZ);
 		ImGui::Text("Camera.X: %.2f, Camera.Y: %.2f, Camera.Z: %2.f", cameraX, cameraY, cameraZ);
 		ImGui::Text("rotX: %.2f, rotY: %.2f, rotZ: %.2f", rotX, rotY, rotZ);
+		ImGui::Text("Scale: %.2f", scaleVal);
 
 		ImGui::End();
 
